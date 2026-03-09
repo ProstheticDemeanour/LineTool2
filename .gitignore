@@ -1,0 +1,65 @@
+# ── Build directories ─────────────────────────────────────────────────────────
+build/
+build-*/
+out/
+cmake-build-*/
+
+# ── CMake generated ───────────────────────────────────────────────────────────
+CMakeCache.txt
+CMakeFiles/
+CMakeScripts/
+CTestTestfile.cmake
+cmake_install.cmake
+install_manifest.txt
+compile_commands.json
+_deps/
+
+# ── Qt generated ──────────────────────────────────────────────────────────────
+*.moc
+moc_*.cpp
+moc_*.h
+qrc_*.cpp
+ui_*.h
+*_autogen/
+
+# ── Compiled output ───────────────────────────────────────────────────────────
+*.exe
+*.dll
+*.so
+*.dylib
+*.a
+*.lib
+*.o
+*.obj
+
+# ── macOS ─────────────────────────────────────────────────────────────────────
+*.app/
+*.dSYM/
+.DS_Store
+.AppleDouble
+.LSOverride
+._*
+
+# ── Windows ───────────────────────────────────────────────────────────────────
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# ── IDE ───────────────────────────────────────────────────────────────────────
+.vscode/
+.idea/
+*.user
+*.suo
+*.sln
+*.vcxproj
+*.vcxproj.filters
+.vs/
+
+# ── Qt Creator ────────────────────────────────────────────────────────────────
+*.pro.user
+*.qbs.user
+*.creator
+*.creator.user
+
+# ── Database (runtime file, not source) ──────────────────────────────────────
+conductors.db
