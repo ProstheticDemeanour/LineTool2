@@ -15,13 +15,11 @@
 #include <QMainWindow>
 #include "core/Database.h"
 
-class QTabWidget;
-class QLabel;
+#include "tabs/LineParametersTab.h"
+#include "tabs/ConductorDatabaseTab.h"
+#include "tabs/LoadabilityTab.h"
 
 namespace LineTool {
-
-class LineParametersTab;
-class ConductorDatabaseTab;
 
 class MainWindow : public QMainWindow
 {
@@ -38,9 +36,10 @@ private:
     Database m_db;
 
     // ── UI elements ───────────────────────────────────────────────────────────
-    QTabWidget*          m_tabs        = nullptr;
-    LineParametersTab*   m_lineTab     = nullptr;
-    ConductorDatabaseTab* m_dbTab      = nullptr;
+    QTabWidget*           m_tabs        = nullptr;
+    LineParametersTab*    m_lineTab     = nullptr;
+    ConductorDatabaseTab* m_dbTab       = nullptr;
+    LoadabilityTab*       m_loadTab     = nullptr;
 
     QLabel* m_dbStatus = nullptr;
 };

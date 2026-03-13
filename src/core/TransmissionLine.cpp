@@ -216,4 +216,134 @@ LineResults TransmissionLine::compute(const GeometryInput& g)
     return res;
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// computeDual()
+//
+// Equivalent positive-sequence L and C for a dual-circuit tower.
+//
+// Phase naming:  circuit 1 = A1(x1,y1), B1(x2,y2), C1(x3,y3)
+//                circuit 2 = A2(x4,y4), B2(x5,y5), C2(x6,y6)
+//
+// Step 1 — bundle GMR for one conductor position:
+//   DS_b = gmrBundle(DS, bundleNo, bundleSpace)
+//
+// Step 2 — equivalent GMR per phase group (two positions, same phase, both circuits):
+//   GMRa = sqrt(DS_b * Da1a2)
+//   GMRb = sqrt(DS_b * Db1b2)
+//   GMRc = sqrt(DS_b * Dc1c2)
+//   GMRl = cbrt(GMRa * GMRb * GMRc)
+//
+// Step 3 — equivalent GMD between phase groups (4 distances per pair):
+//   Dab = (Da1b1 * Da1b2 * Da2b1 * Da2b2)^(1/4)
+//   Dbc = (Db1c1 * Db1c2 * Db2c1 * Db2c2)^(1/4)
+//   Dac = (Da1c1 * Da1c2 * Da2c1 * Da2c2)^(1/4)
+//   GMD = cbrt(Dab * Dbc * Dac)
+//
+// Step 4 — same scalar formula as single circuit:
+//   L = 0.2 * ln(GMD / GMRl)   mH/km
+//   C = 0.0556 / ln(GMD / GMRl) µF/km
+// ─────────────────────────────────────────────────────────────────────────────
+DualCircuitResults TransmissionLine::computeDual(const DualCircuitInput& g)
+{
+    DualCircuitResults res;
+
+    auto d = [](double xa, double ya, double xb, double yb) {
+        double v = std::hypot(xb - xa, yb - ya);
+        return v < 0.1 ? 0.1 : v;
+    };
+
+    // ── Step 1: bundle GMR ────────────────────────────────────────────────────
+    res.DSb_m = gmrBundle(g.DS, g.bundleNo, g.bundleSpace);
+
+    // ── Step 2: inter-circuit same-phase distances ────────────────────────────
+    res.Da1a2_m = d(g.x1,g.y1, g.x4,g.y4);
+    res.Db1b2_m = d(g.x2,g.y2, g.x5,g.y5);
+    res.Dc1c2_m = d(g.x3,g.y3, g.x6,g.y6);
+
+    const double GMRa = std::sqrt(res.DSb_m * res.Da1a2_m);
+    const double GMRb = std::sqrt(res.DSb_m * res.Db1b2_m);
+    const double GMRc = std::sqrt(res.DSb_m * res.Dc1c2_m);
+    res.GMRl_m = std::cbrt(GMRa * GMRb * GMRc);
+
+    // ── Step 3: group GMD ─────────────────────────────────────────────────────
+    // A-B group: Da1b1, Da1b2, Da2b1, Da2b2
+    double Da1b1 = d(g.x1,g.y1, g.x2,g.y2);
+    double Da1b2 = d(g.x1,g.y1, g.x5,g.y5);
+    double Da2b1 = d(g.x4,g.y4, g.x2,g.y2);
+    double Da2b2 = d(g.x4,g.y4, g.x5,g.y5);
+    double Dab   = std::pow(Da1b1 * Da1b2 * Da2b1 * Da2b2, 0.25);
+
+    // B-C group
+    double Db1c1 = d(g.x2,g.y2, g.x3,g.y3);
+    double Db1c2 = d(g.x2,g.y2, g.x6,g.y6);
+    double Db2c1 = d(g.x5,g.y5, g.x3,g.y3);
+    double Db2c2 = d(g.x5,g.y5, g.x6,g.y6);
+    double Dbc   = std::pow(Db1c1 * Db1c2 * Db2c1 * Db2c2, 0.25);
+
+    // A-C group
+    double Da1c1 = d(g.x1,g.y1, g.x3,g.y3);
+    double Da1c2 = d(g.x1,g.y1, g.x6,g.y6);
+    double Da2c1 = d(g.x4,g.y4, g.x3,g.y3);
+    double Da2c2 = d(g.x4,g.y4, g.x6,g.y6);
+    double Dac   = std::pow(Da1c1 * Da1c2 * Da2c1 * Da2c2, 0.25);
+
+    res.GMD_m = std::cbrt(Dab * Dbc * Dac);
+
+    // ── Step 4: L and C ───────────────────────────────────────────────────────
+    if (res.GMRl_m <= 0 || res.GMD_m <= 0)
+        throw std::invalid_argument("Degenerate dual-circuit geometry");
+
+    res.inductance_mH_km  = 0.2   * std::log(res.GMD_m / res.GMRl_m);
+    res.capacitance_uF_km = 0.0556 / std::log(res.GMD_m / res.GMRl_m);
+
+    const double omega = kTwoPi * g.freq;
+    res.reactance_ohm_km = omega * res.inductance_mH_km  * 1e-3;
+    res.susceptance_S_km = omega * res.capacitance_uF_km * 1e-6;
+
+    // ── k, Zc ─────────────────────────────────────────────────────────────────
+    LineRLGC rlgc;
+    rlgc.r = g.r_ac;
+    rlgc.l = res.inductance_mH_km  * 1e-3;
+    rlgc.g = 0.0;
+    rlgc.c = res.capacitance_uF_km * 1e-6;
+
+    LineKZc kzc = rlgcToKZc(rlgc, g.freq);
+    res.Zc_ohm   = kzc.Zc.real();
+    res.k_rad_km = kzc.k.real();
+
+    if (res.k_rad_km > 0)
+        res.vel_factor = (omega / res.k_rad_km) / kSpeedOfLight * 1e3;
+
+    // ── Power system ──────────────────────────────────────────────────────────
+    if (res.Zc_ohm > 0) {
+        res.SIL_MVA       = sil_MVA(g.voltageKV, res.Zc_ohm);
+        res.SIL_total_MVA = 2.0 * res.SIL_MVA;
+    }
+    res.quarter_wave_km = quarterWaveKm(g.freq);
+    res.charging_MVAR   = chargingMVAR(g.voltageKV, res.capacitance_uF_km,
+                                        g.lengthKm, g.freq);
+
+    // ── ABCD ──────────────────────────────────────────────────────────────────
+    HybridParams abcd = hybrid(kzc.k, kzc.Zc, g.lengthKm);
+    res.A_mag = std::abs(abcd.A);  res.A_ang = std::arg(abcd.A) * 180.0 / M_PI;
+    res.B_mag = std::abs(abcd.B);  res.B_ang = std::arg(abcd.B) * 180.0 / M_PI;
+    res.C_mag = std::abs(abcd.C);  res.C_ang = std::arg(abcd.C) * 180.0 / M_PI;
+    res.D_mag = std::abs(abcd.D);  res.D_ang = std::arg(abcd.D) * 180.0 / M_PI;
+
+    // ── Loadability (per circuit) ─────────────────────────────────────────────
+    {
+        const double Vn = g.voltageKV * 1e3 / std::sqrt(3.0);
+        cdouble Vs = cdouble(Vn, 0) * abcd.A + cdouble(0, g.currentA) * abcd.B;
+        cdouble Vr = cdouble(Vn, 0) * abcd.D - cdouble(0, g.currentA) * abcd.B;
+        double delta  = std::arg(Vs) - std::arg(Vr);
+        double beta_L = res.k_rad_km * g.lengthKm;
+        if (std::abs(std::sin(beta_L)) > 1e-6 && res.Zc_ohm > 0)
+            res.loadability_MW = (std::abs(Vs)/Vn) * (std::abs(Vr)/Vn)
+                                  * res.SIL_MVA
+                                  * (std::sin(delta) / std::sin(beta_L));
+    }
+
+    return res;
+}
+
 } // namespace LineTool

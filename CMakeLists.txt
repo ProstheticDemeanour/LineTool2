@@ -48,6 +48,7 @@ endif()
 set(CORE_SOURCES
     src/core/TransmissionLine.cpp
     src/core/Database.cpp
+    src/core/LoadabilityCalc.cpp
 )
 
 set(MODEL_SOURCES
@@ -56,11 +57,13 @@ set(MODEL_SOURCES
 
 set(WIDGET_SOURCES
     src/widgets/TowerGeometryWidget.cpp
+    src/widgets/LoadabilityChartWidget.cpp
 )
 
 set(TAB_SOURCES
     src/tabs/LineParametersTab.cpp
     src/tabs/ConductorDatabaseTab.cpp
+    src/tabs/LoadabilityTab.cpp
 )
 
 set(APP_SOURCES

@@ -96,9 +96,11 @@ void MainWindow::buildUi()
 
     m_lineTab = new LineParametersTab(m_db);
     m_dbTab   = new ConductorDatabaseTab(m_db);
+    m_loadTab = new LoadabilityTab(m_lineTab);
 
-    m_tabs->addTab(m_lineTab, "⚡  Line Parameters");
-    m_tabs->addTab(m_dbTab,   "📋  Conductor Database");
+    m_tabs->addTab(m_lineTab,  "⚡  Line Parameters");
+    m_tabs->addTab(m_loadTab,  "📈  Loadability");
+    m_tabs->addTab(m_dbTab,    "📋  Conductor Database");
 
     // ─────────────────────────────────────────────────────────────────────────
     // TO ADD A NEW TAB: (see MainWindow.h for full instructions)
